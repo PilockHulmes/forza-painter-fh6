@@ -13,7 +13,7 @@ from tkinter import BOTH, END, LEFT, RIGHT, X, Button, Canvas, Checkbutton, Entr
 import psutil
 
 from game_profiles import PROFILES
-from generator_backend import GENERATOR_EXE, build_generator_command, generated_jsons, generated_preview_files, generator_preview_path, load_settings, write_custom_settings
+from generator_backend import GENERATOR_EXE, best_geometry_jsons, build_generator_command, generated_jsons, generated_preview_files, generator_preview_path, load_settings, write_custom_settings
 
 
 ROOT = Path(__file__).resolve().parent
@@ -98,6 +98,7 @@ TEXT = {
         "locating": "Finding current FH6 template...",
         "located": "FH6 template located and verified.",
         "importing": "Importing JSON into FH6...",
+        "json_too_small": "Selected JSON has far fewer layers than the template. Import will look blurry; choose a higher-layer JSON.",
         "safe_stop": "Stopped before writing because no safe FH6 template was found.",
         "tutorial": """Beginner workflow
 
@@ -196,6 +197,7 @@ Notes
         "locating": "正在查找当前 FH6 模板...",
         "located": "已安全定位并验证 FH6 模板。",
         "importing": "正在导入 JSON 到 FH6...",
+        "json_too_small": "当前 JSON 层数远少于模板层数，导入会很糊；请换用更高层数的 JSON。",
         "safe_stop": "未找到安全 FH6 模板，已在写入前停止。",
         "tutorial": """小白流程
 
@@ -933,9 +935,9 @@ class App:
                     self.queue.put(("status", tr(self.lang, "failed")))
                     return
                 after = generated_jsons(image_path)
-                new_outputs = [path for path in after if path.resolve() not in before]
+                new_outputs = best_geometry_jsons([path for path in after if path.resolve() not in before])
                 if not new_outputs and after:
-                    new_outputs = [after[0]]
+                    new_outputs = best_geometry_jsons(after[:1])
                 if not new_outputs:
                     self.queue.put(("log", "Generator finished but no JSON output was found."))
                     self.queue.put(("status", tr(self.lang, "failed")))
@@ -1009,6 +1011,16 @@ class App:
         if "main.py" in joined:
             return tr(self.lang, "importing")
         return "Starting helper..."
+
+    def _check_json_layer_fit(self, json_path, layer_count):
+        try:
+            from generator_backend import geometry_shape_count
+            json_layers = geometry_shape_count(json_path)
+            template_layers = int(layer_count)
+        except Exception:
+            return
+        if json_layers and template_layers and json_layers < template_layers * 0.75:
+            self.queue.put(("log", f"{tr(self.lang, 'json_too_small')} JSON={json_layers}, template={template_layers}"))
 
     def _friendly_subprocess_line(self, line):
         if not line:
@@ -1123,6 +1135,8 @@ class App:
                     self.queue.put(("status", tr(self.lang, "failed")))
                     return
         for path in list(self.json_files):
+            if game == "fh6" and layer_count:
+                self._check_json_layer_fit(path, layer_count)
             cmd = [sys.executable, ROOT / "main.py", "--game", game, "--no-preview"]
             if pid:
                 cmd.extend(["--pid", str(pid)])

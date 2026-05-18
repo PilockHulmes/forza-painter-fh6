@@ -324,18 +324,19 @@ def load_geometry(
         return
     print("CLiveryLayer table found at {0:x}".format(cLiveryLayerTable))
 
-    # Trim the shapes back to 3000 minus the 4 masking rectangles if necessary
-    if len(shapes) > 2996:
-        shapes = shapes[:2996]
-    
-    # Trim the shapes back to current_livery_count minus the 4 masking rectangles if necessary
-    if len(shapes) > int(current_livery_count - 4):
-        shapes = shapes[:int(current_livery_count-4)]
-    # Add the 4 masking rectangles
-    shapes.append(Shape(1, -int(image_w//4), int(image_h//2), int(image_w//2), int(image_h*1.5), 0, Color(0,0,0,255), True))
-    shapes.append(Shape(1, image_w + int(image_w//4), int(image_h//2), int(image_w//2), int(image_h*1.5), 0, Color(0,0,0,255), True))
-    shapes.append(Shape(1, int(image_w//2), -int(image_h//4), image_w + int(image_w), int(image_h//2), 0, Color(0,0,0,255), True))
-    shapes.append(Shape(1, int(image_w//2), image_h + int(image_h//4), image_w + int(image_w), int(image_h//2), 0, Color(0,0,0,255), True))
+    if len(shapes) > 3000:
+        print("Geometry has {} drawable layers; trimming to 3000.".format(len(shapes)))
+        shapes = shapes[:3000]
+
+    if len(shapes) > int(current_livery_count):
+        print(
+            "Geometry has {} drawable layers but template has {} layers; trimming extras.".format(
+                len(shapes), current_livery_count
+            )
+        )
+        shapes = shapes[:int(current_livery_count)]
+
+    print("Drawable layers to import: {} / template layers: {}".format(len(shapes), current_livery_count))
     
     # Enumerate every template slot. Any unused slot is hidden so larger templates
     # do not leave their original spheres visible after importing smaller JSON.

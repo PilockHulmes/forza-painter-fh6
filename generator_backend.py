@@ -94,6 +94,38 @@ def generated_jsons(image_path):
     return sorted(set(candidates), key=lambda path: path.stat().st_mtime, reverse=True)
 
 
+def geometry_shape_count(path):
+    try:
+        import json
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        shapes = data.get("shapes", [])
+        if not shapes:
+            return 0
+        count = 0
+        for shape in shapes[1:]:
+            color = shape.get("color", [])
+            if len(color) == 4 and int(color[3]) <= 0:
+                continue
+            if int(shape.get("type", 0)) == 16:
+                count += 1
+        return count
+    except Exception:
+        return 0
+
+
+def best_geometry_jsons(paths):
+    best_by_stem = {}
+    for path in paths:
+        path = Path(path)
+        base_name = re.sub(r"\.\d+$", "", path.stem)
+        key = str(path.with_name(base_name).resolve()).lower()
+        score = (geometry_shape_count(path), path.stat().st_mtime)
+        current = best_by_stem.get(key)
+        if current is None or score > current[0]:
+            best_by_stem[key] = (score, path)
+    return [item[1] for item in sorted(best_by_stem.values(), key=lambda item: item[1].stat().st_mtime, reverse=True)]
+
+
 def generator_preview_path(image_path):
     PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
     image_path = Path(image_path)
