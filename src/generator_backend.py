@@ -17,6 +17,7 @@ SETTING_KEYS = (
     "maxResolution",
     "maxThreads",
     "mutatedSamples",
+    "forceOpaqueShapes",
     "posterizeLevels",
     "previewEvery",
     "randomSamples",

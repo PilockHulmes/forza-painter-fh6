@@ -1,5 +1,5 @@
 APP_DISPLAY_NAME = "forza-painter FH6"
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 
 def app_title():
