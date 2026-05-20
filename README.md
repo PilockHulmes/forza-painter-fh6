@@ -1,40 +1,62 @@
-# forza-painter FH6
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d4f48f71-d76e-4ffe-9fb1-0b075d79bf05" alt="forza-painter FH6 logo" width="720">
+</p>
 
-[English](README.md) | [中文](README.zh-CN.md)
+<h1 align="center">forza-painter FH6</h1>
 
-Current version: `v1.1.1`
+<p align="center">
+  <strong>Image to Forza Horizon 6 Vinyl Group generator and importer.</strong>
+</p>
 
-Generate Forza Horizon 6 Vinyl Group layers from images. The desktop app handles generation, preview, and import in one place. Normal users do not need to type memory addresses.
+<p align="center">
+  <a href="README.md">English</a> ·
+  <a href="README.zh-CN.md">中文</a>
+</p>
+
+<p align="center">
+  <code>v1.1.1</code> · <code>Windows</code> · <code>Forza Horizon 6</code> · <code>GPU/OpenCL</code>
+</p>
+
+Generate Forza Horizon 6 Vinyl Group layers from PNG/JPG/BMP images. The desktop app handles generation, preview, and import in one place; normal users do not need to type memory addresses.
 
 > **If the result looks blurry:** raise `Random samples` first. Values above **200000** usually make a major quality difference; higher values are clearer but take much longer to generate.
 
-> Import walkthrough video: https://www.bilibili.com/video/BV1hG5Z6nENZ  
-> GPU generator reference: https://github.com/zjl88858/forza-painter-geometrize-gpu
+| What it does | Details |
+| --- | --- |
+| Generate JSON | Convert images into geometry JSON with the bundled GPU/OpenCL generator. |
+| Preview output | Show source and generated geometry previews inside the app. |
+| Import to FH6 | Import JSON into the currently open FH6 Vinyl Group Editor. |
+| Safe FH6 workflow | Auto-locate and verify the current editable layer table before writing. |
 
-This tool has two jobs:
+## Resources
 
-- Generate geometry JSON with the bundled GPU/OpenCL generator.
-- Import JSON into the currently open FH6 Vinyl Group Editor.
-
-Normal use does not require manual memory addresses. For FH6 import, select the game process, enter the template layer count, then import.
+- Import walkthrough video: https://www.bilibili.com/video/BV1hG5Z6nENZ
+- Bundled GPU generator source/reference: https://github.com/zjl88858/forza-painter-geometrize-gpu
 
 ## Preview
 
-### App Import Page
-
-![App import page](docs/screenshots/app-import-preview.png)
-
-### Template Ready In FH6
-
-![FH6 template ready](docs/screenshots/fh6-template-ready.png)
-
-### Imported Result
-
-![FH6 import result](docs/screenshots/fh6-import-result.png)
-
-### Applied To Car
-
-![FH6 car applied result](docs/screenshots/fh6-car-applied.png)
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/app-import-preview.png" alt="App import page"><br>
+      <strong>App import page</strong>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/fh6-template-ready.png" alt="FH6 template ready"><br>
+      <strong>Template ready in FH6</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/fh6-import-result.png" alt="FH6 import result"><br>
+      <strong>Imported result</strong>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/fh6-car-applied.png" alt="FH6 car applied result"><br>
+      <strong>Applied to car</strong>
+    </td>
+  </tr>
+</table>
 
 ## Quick Start
 
