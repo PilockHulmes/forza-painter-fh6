@@ -19,7 +19,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-%PYTHON_CMD% app.py "%ARG1%"
+%PYTHON_CMD% src\app.py "%ARG1%"
 cls
 color 0F
 echo FINISHED!

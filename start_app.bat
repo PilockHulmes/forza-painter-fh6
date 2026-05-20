@@ -8,7 +8,7 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-%PYTHON_CMD% app.py
+%PYTHON_CMD% src\app.py
 pause
 exit /b %errorlevel%
 

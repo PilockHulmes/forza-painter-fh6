@@ -23,7 +23,8 @@ PAGE_GUARD = 0x100
 PAGE_READONLY = 0x02
 PAGE_READWRITE = 0x04
 READABLE_WRITABLE_MASK = 0xCC
-ROOT = Path(__file__).resolve().parent
+APP_DIR = Path(__file__).resolve().parent
+ROOT = APP_DIR.parent
 
 
 class MEMORY_BASIC_INFORMATION(ctypes.Structure):
@@ -333,7 +334,9 @@ def find_table_at_known_group_delta(pid, profile, count_address, layer_count):
 
 def load_update_code_patterns():
     paths = [
+        APP_DIR / "update-codes.dat",
         ROOT / "update-codes.dat",
+        APP_DIR / "forza-codes.dat",
         ROOT / "forza-codes.dat",
         ROOT.parent / "forza-codes.dat",
     ]

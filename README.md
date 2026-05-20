@@ -2,6 +2,8 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
+Current version: `v1.1.1`
+
 Generate Forza Horizon 6 Vinyl Group layers from images. The desktop app handles generation, preview, and import in one place. Normal users do not need to type memory addresses.
 
 > **If the result looks blurry:** raise `Random samples` first. Values above **200000** usually make a major quality difference; higher values are clearer but take much longer to generate.
@@ -164,7 +166,7 @@ The app locates and verifies the current FH6 layer table before writing. If the 
 
 ### GPU Generator Or OpenCL Error
 
-Update the NVIDIA/AMD/Intel graphics driver. The bundled generator is `forza-painter-geometrize-go.exe` and uses OpenCL.
+Update the NVIDIA/AMD/Intel graphics driver. The bundled generator is `bin/forza-painter-geometrize-go.exe` and uses OpenCL.
 
 ### Python Or Dependency Error
 
@@ -224,3 +226,12 @@ Most users only need:
 - `1. drag_image_file_here.bat`: optional shortcut for dragging an image into the app.
 
 Do not publish runtime cache folders such as `webui-data`, `runtime`, `__pycache__`, or `dist`.
+
+## Directory Layout
+
+- `src/`: application source code; normal users do not need to open it.
+- `bin/`: bundled GPU/OpenCL generator.
+- `config/settings/`: generation quality presets.
+- `assets/`: sample assets.
+- `docs/screenshots/`: screenshots used by the README.
+- `scripts/`: development and release scripts.

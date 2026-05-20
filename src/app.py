@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, X, Button, Canvas, Checkbutton, Entry, Frame, Label, Listbox, PhotoImage, StringVar, Text, Tk, filedialog, ttk
@@ -16,9 +17,11 @@ import psutil
 from game_profiles import PROFILES
 from geometry_json import RECTANGLE, ROTATED_ELLIPSE, load_normalized_geometry
 from generator_backend import GENERATOR_EXE, best_geometry_jsons, build_generator_command, generated_jsons, generated_preview_files, generator_preview_path, load_settings, write_custom_settings
+from version import APP_DISPLAY_NAME, __version__, app_title
 
 
-ROOT = Path(__file__).resolve().parent
+APP_DIR = Path(__file__).resolve().parent
+ROOT = APP_DIR.parent
 PROBE_DIR = ROOT / "webui-data" / "probes"
 SESSION_PATH = PROBE_DIR / "current-fh6-session.json"
 MEMORY_SNAPSHOT_LIMIT_MB = 2048
@@ -29,7 +32,7 @@ _CV2_ERROR = None
 
 TEXT = {
     "en": {
-        "title": "forza-painter FH6",
+        "title": app_title(),
         "subtitle": "Generate geometry JSON and import it into Forza Horizon vinyl editor.",
         "language": "Language",
         "process": "Game process",
@@ -57,6 +60,7 @@ TEXT = {
         "generate_step_run_hint": "Click once and wait. Progress appears in Logs; generated JSON is added to the Import page automatically.",
         "scroll_hint": "Add image, choose a preset, then adjust custom settings if needed.",
         "start_generate": "Generate with current settings",
+        "stop_generate": "Stop current generation",
         "open_output": "Open output folder",
         "preview": "Preview",
         "preview_hint": "Select an image or JSON to preview it here.",
@@ -100,6 +104,10 @@ TEXT = {
         "running": "Running",
         "done": "Done",
         "failed": "Failed",
+        "stopped": "Stopped",
+        "no_generation_running": "No generation is running.",
+        "stopping_generation": "Stopping current generation...",
+        "generation_stopped": "Generation stopped.",
         "locating": "Finding current FH6 template...",
         "located": "FH6 template located and verified.",
         "importing": "Importing JSON into FH6...",
@@ -132,7 +140,7 @@ Notes
 """,
     },
     "zh": {
-        "title": "forza-painter FH6",
+        "title": app_title(),
         "subtitle": "生成 geometry JSON，并导入到 Forza Horizon 的 Vinyl Group 编辑器。",
         "language": "语言",
         "process": "游戏进程",
@@ -160,6 +168,7 @@ Notes
         "generate_step_run_hint": "点击一次后等待。进度会显示在日志里，生成的 JSON 会自动加入导入页面。",
         "scroll_hint": "添加图片、选择预设；需要时直接修改下方自定义参数。",
         "start_generate": "按当前配置生成",
+        "stop_generate": "中断当前生成",
         "open_output": "打开输出目录",
         "preview": "预览",
         "preview_hint": "选择图片或 JSON 后会在这里预览。",
@@ -203,6 +212,10 @@ Notes
         "running": "运行中",
         "done": "完成",
         "failed": "失败",
+        "stopped": "已中断",
+        "no_generation_running": "当前没有正在生成的任务。",
+        "stopping_generation": "正在中断当前生成...",
+        "generation_stopped": "生成已中断。",
         "locating": "正在查找当前 FH6 模板...",
         "located": "已安全定位并验证 FH6 模板。",
         "importing": "正在导入 JSON 到 FH6...",
@@ -386,13 +399,21 @@ class App:
     def __init__(self, initial_images):
         ensure_dirs()
         self.root = Tk()
-        self.root.title("forza-painter FH6")
+        self.root.title(app_title())
         self.root.geometry("1180x780")
         self.lang = "en"
         self.queue = queue.Queue()
         self.shutdown_event = threading.Event()
         self.active_processes = set()
         self.process_lock = threading.Lock()
+        self.generation_lock = threading.Lock()
+        self.generation_running = False
+        self.current_generator_proc = None
+        self.eta_intervals = deque(maxlen=24)
+        self.eta_last_layer = None
+        self.eta_last_time = None
+        self.eta_smoothed_seconds_per_layer = None
+        self.eta_display_remaining = None
         self.closed = False
         self.settings = load_settings()
         self.images = [Path(path) for path in initial_images if Path(path).exists()]
@@ -640,8 +661,11 @@ class App:
         self._label(step3, "generate_step_run_hint", anchor="w", justify=LEFT, wraplength=540).pack(fill=X, padx=10, pady=(8, 4))
         actions = Frame(step3)
         actions.pack(fill=X, padx=10, pady=(4, 12))
-        self._button(actions, "start_generate", self.start_generate, font=("Segoe UI", 12, "bold"), height=2).pack(side=LEFT, fill=X, expand=True)
-        self._button(actions, "open_output", self.open_output_folder, height=2).pack(side=LEFT, padx=8)
+        self.generate_button = self._button(actions, "start_generate", self.start_generate, font=("Segoe UI", 12, "bold"), height=2)
+        self.generate_button.pack(side=LEFT, fill=X, expand=True)
+        self.stop_generate_button = self._button(actions, "stop_generate", self.stop_generate, height=2, state="disabled")
+        self.stop_generate_button.pack(side=LEFT, padx=8)
+        self._button(actions, "open_output", self.open_output_folder, height=2).pack(side=LEFT)
 
         self._label(right, "preview", anchor="w", font=("Segoe UI", 12, "bold")).pack(fill=X)
         self.preview_label = Label(right, text=tr(self.lang, "preview_hint"), bg="#202020", fg="#dddddd", width=60, height=24)
@@ -836,6 +860,69 @@ class App:
         self.log.insert(END, f"[{timestamp}] {message}\n")
         self.log.see(END)
 
+    def _reset_generation_eta(self):
+        self.eta_intervals.clear()
+        self.eta_last_layer = None
+        self.eta_last_time = None
+        self.eta_smoothed_seconds_per_layer = None
+        self.eta_display_remaining = None
+
+    def _format_remaining_time(self, seconds):
+        seconds = max(0, int(round(seconds)))
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        suffix = "剩余" if self.lang == "zh" else "left"
+        if hours:
+            return f"{hours}h {minutes:02d}m {suffix}"
+        if minutes:
+            return f"{minutes}m {seconds:02d}s {suffix}"
+        return f"{seconds}s {suffix}"
+
+    def _progress_with_eta(self, friendly):
+        match = re.match(r"Generated layer\s+(\d+)/(\d+)", friendly)
+        if not match:
+            return friendly
+        current = int(match.group(1))
+        total = int(match.group(2))
+        now = time.time()
+        if self.eta_last_layer is None:
+            self.eta_last_layer = current
+            self.eta_last_time = now
+            return friendly
+        layer_delta = current - self.eta_last_layer
+        elapsed_seconds = now - self.eta_last_time
+        self.eta_last_layer = current
+        self.eta_last_time = now
+        if layer_delta <= 0:
+            return friendly
+        if elapsed_seconds >= 0.05:
+            self.eta_intervals.append(elapsed_seconds / layer_delta)
+        remaining_layers = max(0, total - current)
+        if remaining_layers == 0:
+            self.eta_display_remaining = 0
+            eta_time = datetime.fromtimestamp(now).strftime("%H:%M:%S")
+            return f"{friendly} | ETA {eta_time} ({self._format_remaining_time(0)})"
+        if not self.eta_intervals:
+            return friendly
+        intervals = sorted(self.eta_intervals)
+        seconds_per_layer = intervals[len(intervals) // 2]
+        if self.eta_smoothed_seconds_per_layer is None:
+            self.eta_smoothed_seconds_per_layer = seconds_per_layer
+        else:
+            self.eta_smoothed_seconds_per_layer = (
+                self.eta_smoothed_seconds_per_layer * 0.75
+                + seconds_per_layer * 0.25
+            )
+        remaining_seconds = self.eta_smoothed_seconds_per_layer * remaining_layers
+        if self.eta_display_remaining is None:
+            self.eta_display_remaining = remaining_seconds
+        else:
+            expected_remaining = max(0, self.eta_display_remaining - elapsed_seconds)
+            self.eta_display_remaining = expected_remaining * 0.8 + remaining_seconds * 0.2
+        remaining_seconds = self.eta_display_remaining
+        eta_time = datetime.fromtimestamp(now + remaining_seconds).strftime("%H:%M:%S")
+        return f"{friendly} | ETA {eta_time} ({self._format_remaining_time(remaining_seconds)})"
+
     def friendly_generator_line(self, line):
         text = (line or "").strip()
         if not text:
@@ -866,13 +953,49 @@ class App:
         if not friendly or friendly == last_message:
             return last_message
         if friendly.startswith("Generated layer "):
-            self.queue.put(("progress", friendly))
-            self.queue.put(("log", friendly))
+            message = self._progress_with_eta(friendly)
+            self.queue.put(("progress", message))
+            self.queue.put(("log", message))
             return friendly
         if friendly == "FINISHED":
             self.queue.put(("progress", friendly))
         self.queue.put(("log", friendly))
         return friendly
+
+    def _int_setting(self, setting, key, default=0):
+        try:
+            return int(str(setting.get("values", {}).get(key, default)).strip())
+        except (TypeError, ValueError):
+            return default
+
+    def _log_generation_load_warning(self, setting):
+        stop_at = self._int_setting(setting, "stopAt")
+        random_samples = self._int_setting(setting, "randomSamples")
+        mutated_samples = self._int_setting(setting, "mutatedSamples")
+        max_resolution = self._int_setting(setting, "maxResolution")
+        if random_samples >= 200000 or mutated_samples >= 8000 or max_resolution >= 2000:
+            self.queue.put((
+                "log",
+                "High quality generation selected: "
+                f"layers={stop_at}, randomSamples={random_samples}, "
+                f"mutatedSamples={mutated_samples}, maxResolution={max_resolution}. "
+                "The first layer can take a long time before progress appears.",
+            ))
+
+    def _generator_exit_message(self, returncode):
+        if returncode in (3221225477, -1073741819):
+            return (
+                "GPU generator crashed with Windows access violation 0xC0000005. "
+                "This is usually an OpenCL/GPU driver or generator runtime crash, not an import error. "
+                "Try a lower preset, lower Max resolution / Random samples, update the GPU driver, "
+                "or convert the source image to a normal PNG/JPG path and retry."
+            )
+        if returncode == 3221226505:
+            return (
+                "GPU generator crashed with Windows stack buffer overrun 0xC0000409. "
+                "Try updating the GPU driver, lowering the preset, or converting the image to PNG/JPG."
+            )
+        return f"Generator exited with code {returncode}."
 
     def add_images(self):
         files = filedialog.askopenfilenames(
@@ -971,29 +1094,59 @@ class App:
         except ValueError:
             return None
 
+    def stop_generate(self):
+        with self.generation_lock:
+            if not self.generation_running:
+                self.log_line(tr(self.lang, "no_generation_running"))
+                return
+            proc = self.current_generator_proc
+        self.log_line(tr(self.lang, "stopping_generation"))
+        self.shutdown_event.set()
+        if proc is not None:
+            self._terminate_process(proc)
+        self.status.set(tr(self.lang, "stopped"))
+
     def start_generate(self):
+        with self.generation_lock:
+            if self.generation_running:
+                self.log_line("Generation is already running. Wait for it to finish or use Stop current generation.")
+                return
+            self.generation_running = True
         if not self.images:
+            with self.generation_lock:
+                self.generation_running = False
             self.log_line("No images selected.")
             return
         setting = self._effective_setting()
         if not setting:
+            with self.generation_lock:
+                self.generation_running = False
             self.log_line("No quality profile selected.")
             return
         if not GENERATOR_EXE.exists():
+            with self.generation_lock:
+                self.generation_running = False
             self.log_line(f"Missing generator: {GENERATOR_EXE}")
             return
         self.shutdown_event.clear()
+        self._reset_generation_eta()
         self.progress_text.set("")
         self.status.set(tr(self.lang, "running"))
+        if hasattr(self, "generate_button"):
+            self.generate_button.config(state="disabled")
+        if hasattr(self, "stop_generate_button"):
+            self.stop_generate_button.config(state="normal")
         threading.Thread(target=self._generate_worker, args=(setting,), daemon=True).start()
 
     def _generate_worker(self, setting):
         try:
             self.queue.put(("log", f"Selected profile: {setting['path'].name}"))
+            self._log_generation_load_warning(setting)
             for image_path in list(self.images):
                 if self.shutdown_event.is_set():
-                    self.queue.put(("status", tr(self.lang, "failed")))
+                    self.queue.put(("status", tr(self.lang, "stopped")))
                     return
+                self._reset_generation_eta()
                 before = {path.resolve() for path in generated_jsons(image_path)}
                 preview_path = generator_preview_path(image_path)
                 if preview_path.exists():
@@ -1018,6 +1171,8 @@ class App:
                     creationflags=flags,
                 )
                 self._register_process(proc)
+                with self.generation_lock:
+                    self.current_generator_proc = proc
 
                 last_preview = None
                 last_preview_mtime = None
@@ -1050,7 +1205,7 @@ class App:
                     while proc.poll() is None:
                         if self.shutdown_event.is_set():
                             self._terminate_process(proc)
-                            self.queue.put(("status", tr(self.lang, "failed")))
+                            self.queue.put(("status", tr(self.lang, "stopped")))
                             return
                         _drain_generator_output()
                         preview_files = generated_preview_files(image_path)
@@ -1070,8 +1225,11 @@ class App:
                     _drain_generator_output()
                 finally:
                     self._unregister_process(proc)
+                    with self.generation_lock:
+                        if self.current_generator_proc is proc:
+                            self.current_generator_proc = None
                 if proc.returncode != 0:
-                    self.queue.put(("log", f"Generator exited with code {proc.returncode}."))
+                    self.queue.put(("log", self._generator_exit_message(proc.returncode)))
                     self.queue.put(("status", tr(self.lang, "failed")))
                     return
                 after = generated_jsons(image_path)
@@ -1098,6 +1256,8 @@ class App:
         except Exception as exc:
             self.queue.put(("log", f"Generator failed: {exc}"))
             self.queue.put(("status", tr(self.lang, "failed")))
+        finally:
+            self.queue.put(("generation_done", None))
 
     def open_output_folder(self):
         folder = None
@@ -1228,7 +1388,7 @@ class App:
     def _auto_locate_worker(self, pid, layer_count):
         cmd = [
             sys.executable,
-            ROOT / "fh6_probe.py",
+            APP_DIR / "fh6_probe.py",
             "--game",
             self.selected_game.get() or "fh6",
             "--pid",
@@ -1289,7 +1449,7 @@ class App:
         for path in list(self.json_files):
             if game == "fh6" and layer_count:
                 self._check_json_layer_fit(path, layer_count)
-            cmd = [sys.executable, ROOT / "main.py", "--game", game, "--no-preview"]
+            cmd = [sys.executable, APP_DIR / "main.py", "--game", game, "--no-preview"]
             if pid:
                 cmd.extend(["--pid", str(pid)])
             if count_address:
@@ -1307,7 +1467,7 @@ class App:
 
     def start_diagnose(self):
         pid = self.selected_pid_value()
-        cmd = [sys.executable, ROOT / "main.py", "--game", self.selected_game.get() or "fh6", "--diagnose"]
+        cmd = [sys.executable, APP_DIR / "main.py", "--game", self.selected_game.get() or "fh6", "--diagnose"]
         if pid:
             cmd.extend(["--pid", str(pid)])
         self.status.set(tr(self.lang, "running"))
@@ -1322,7 +1482,7 @@ class App:
         output_path = PROBE_DIR / f"memory-count-{count}.jsonl"
         cmd = [
             sys.executable,
-            ROOT / "fh6_probe.py",
+            APP_DIR / "fh6_probe.py",
             "--game",
             self.selected_game.get() or "fh6",
             "--pid",
@@ -1349,7 +1509,7 @@ class App:
         intersect_path = PROBE_DIR / f"memory-count-{int(previous) - 1}-to-{previous}-candidates.json"
         cmd = [
             sys.executable,
-            ROOT / "fh6_probe.py",
+            APP_DIR / "fh6_probe.py",
             "--game",
             self.selected_game.get() or "fh6",
             "--pid",
@@ -1377,7 +1537,7 @@ class App:
             return
         cmd = [
             sys.executable,
-            ROOT / "fh6_probe.py",
+            APP_DIR / "fh6_probe.py",
             "--game",
             self.selected_game.get() or "fh6",
             "--pid",
@@ -1410,6 +1570,19 @@ class App:
                 self.progress_text.set(payload)
             elif kind == "status":
                 self.status.set(payload)
+            elif kind == "generation_done":
+                stopped = self.shutdown_event.is_set()
+                with self.generation_lock:
+                    self.generation_running = False
+                    self.current_generator_proc = None
+                if hasattr(self, "generate_button"):
+                    self.generate_button.config(state="normal")
+                if hasattr(self, "stop_generate_button"):
+                    self.stop_generate_button.config(state="disabled")
+                if stopped and not self.closed:
+                    self.progress_text.set(tr(self.lang, "generation_stopped"))
+                    self.status.set(tr(self.lang, "stopped"))
+                    self.log_line(tr(self.lang, "generation_stopped"))
             elif kind == "preview":
                 self.show_preview(payload)
             elif kind == "preview_file":
@@ -1424,7 +1597,8 @@ class App:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Standalone forza-painter FH6 desktop app.")
+    parser = argparse.ArgumentParser(description=f"Standalone {APP_DISPLAY_NAME} desktop app.")
+    parser.add_argument("--version", action="version", version=f"{APP_DISPLAY_NAME} {__version__}")
     parser.add_argument("images", nargs="*", help="Optional image files to preload.")
     args = parser.parse_args()
     App(args.images).run()

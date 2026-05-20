@@ -1,9 +1,17 @@
 $ErrorActionPreference = "Stop"
 
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = Split-Path -Parent $ScriptDir
 $DistRoot = Join-Path $Root "dist"
-$PackageDir = Join-Path $DistRoot "forza-painter-fh6"
-$ZipPath = Join-Path $DistRoot "forza-painter-fh6.zip"
+$VersionFile = Join-Path $Root "src\version.py"
+$VersionMatch = Select-String -Path $VersionFile -Pattern '^__version__\s*=\s*"([^"]+)"' | Select-Object -First 1
+if (-not $VersionMatch) {
+    throw "Cannot read version from src\version.py"
+}
+$Version = $VersionMatch.Matches[0].Groups[1].Value
+$PackageName = "forza-painter-fh6-v$Version"
+$PackageDir = Join-Path $DistRoot $PackageName
+$ZipPath = Join-Path $DistRoot "$PackageName.zip"
 
 $include = @(
     "README.md",
@@ -18,16 +26,11 @@ $include = @(
     ".gitignore",
     "1. drag_image_file_here.bat",
     "start_app.bat",
-    "forza-painter-geometrize-go.exe",
-    "app.py",
-    "main.py",
-    "generator_backend.py",
-    "fh6_probe.py",
-    "game_profiles.py",
-    "internal_classes.py",
-    "native.py",
-    "settings",
-    "imgs"
+    "src",
+    "bin",
+    "config",
+    "assets",
+    "docs"
 )
 
 if (Test-Path $PackageDir) {
@@ -49,6 +52,11 @@ foreach ($item in $include) {
         Copy-Item -LiteralPath $source -Destination $destination
     }
 }
+
+Get-ChildItem -Path $PackageDir -Recurse -Directory -Include "__pycache__", ".pytest_cache" -ErrorAction SilentlyContinue |
+    Remove-Item -Recurse -Force
+Get-ChildItem -Path $PackageDir -Recurse -File -Include "*.pyc", "*.pyo", "*.log" -ErrorAction SilentlyContinue |
+    Remove-Item -Force
 
 if (Test-Path $ZipPath) {
     Remove-Item -LiteralPath $ZipPath -Force

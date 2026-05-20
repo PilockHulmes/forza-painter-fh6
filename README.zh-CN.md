@@ -2,6 +2,8 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
+当前版本：`v1.1.1`
+
 把图片转换成 Forza Horizon 6 的 Vinyl Group 图层。软件内完成生成、预览和导入，普通用户不需要手动填写内存地址。
 
 > **画面发糊先看这里：** 优先提高生成页里的 `Random samples / 随机样本`。随机样本数在 **200000 以上** 通常会有明显质变；数值越高越清晰，但生成时间也会明显增加。
@@ -174,7 +176,7 @@ check_environment.bat
 
 ### GPU 生成器或 OpenCL 报错
 
-更新 NVIDIA/AMD/Intel 显卡驱动。仓库自带的生成器是 `forza-painter-geometrize-go.exe`，它使用 OpenCL，不依赖 Python 的 NumPy/OpenCV。
+更新 NVIDIA/AMD/Intel 显卡驱动。仓库自带的生成器是 `bin/forza-painter-geometrize-go.exe`，它使用 OpenCL，不依赖 Python 的 NumPy/OpenCV。
 
 ### 权限错误或 `OpenProcess` 失败
 
@@ -208,3 +210,12 @@ check_environment.bat
 - `1. drag_image_file_here.bat`：可选，把图片拖到这里打开软件。
 
 普通用户不需要直接打开 Python 文件。
+
+## 目录说明
+
+- `src/`：软件源码，普通用户不用打开。
+- `bin/`：内置 GPU/OpenCL 生成器。
+- `config/settings/`：生成品质预设。
+- `assets/`：示例资源。
+- `docs/screenshots/`：README 使用的截图。
+- `scripts/`：开发/发布脚本。
