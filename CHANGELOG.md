@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.6.1 / 2026-05-24
+
+- Updated the app version to `v1.6.1`; release packages now use `forza-painter-fh6-v1.6.1.exe`.
+- Disabled `luma_band` preprocessing by default in bundled presets.
+- Import no longer reuses stale FH6 session data from `webui-data`; it re-locates the current template before writing.
+- JSON previews now use one stable renderer path to avoid ellipse preview distortion differences between packaged EXE environments.
+
 ## v1.6.0 / 2026-05-24
 
 - Updated the app version to `v1.6.0`; release packages now use `forza-painter-fh6-v1.6.0.exe`.
@@ -7,9 +14,6 @@
 - Added upstream `errorGridSize` preset support.
 - Integrated the upstream transparent-area overhang prevention algorithm adjustment.
 - Significantly improved generation quality for the large ellipse at the bottom of transparent images.
-- Disabled `luma_band` preprocessing by default in bundled presets.
-- Import no longer reuses stale FH6 session data from `webui-data`; it re-locates the current template before writing.
-- JSON previews now use one stable renderer path to avoid ellipse preview distortion differences between packaged EXE environments.
 
 ## v1.5.4 / 2026-05-23
 
