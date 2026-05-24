@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.6.0 / 2026-05-24
+
+- Updated the app version to `v1.6.0`; release packages now use `forza-painter-fh6-v1.6.0.exe`.
+- Updated the bundled GPU generator to upstream `canary-26052401`.
+- Added upstream `errorGridSize` preset support.
+- Integrated the upstream transparent-area overhang prevention algorithm adjustment.
+
 ## v1.5.4 / 2026-05-23
 
 - Fixed preview scaling for high-resolution source images, generator preview PNG files, and JSON previews.

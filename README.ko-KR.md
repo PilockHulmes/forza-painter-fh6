@@ -15,12 +15,12 @@
 </p>
 
 <p align="center">
-  <code>v1.5.4</code> · <code>Windows</code> · <code>Forza Horizon 6</code> · <code>GPU/OpenCL</code> · <code>One-file EXE</code>
+  <code>v1.6.0</code> · <code>Windows</code> · <code>Forza Horizon 6</code> · <code>GPU/OpenCL</code> · <code>One-file EXE</code>
 </p>
 
 PNG/JPG/BMP 이미지를 Forza Horizon 6 비닐 그룹 레이어로 변환합니다. 앱에서 생성, 미리보기, 가져오기를 한 번에 처리하며 일반 사용자는 Python, `.venv`, 배치 파일, 메모리 주소 입력이 필요 없습니다.
 
-> **EXE 다운로드:** [Releases](https://github.com/bvzrays/forza-painter-fh6/releases)에서 `forza-painter-fh6-v1.5.4.exe`를 내려받아 바로 실행하세요.
+> **EXE 다운로드:** [Releases](https://github.com/bvzrays/forza-painter-fh6/releases)에서 `forza-painter-fh6-v1.6.0.exe`를 내려받아 바로 실행하세요.
 
 > **결과가 흐릿하면:** 먼저 `Random samples` 값을 높이세요. **200000** 이상부터 품질 차이가 크게 보이는 경우가 많습니다.
 
@@ -36,7 +36,7 @@ PNG/JPG/BMP 이미지를 Forza Horizon 6 비닐 그룹 레이어로 변환합니
 
 ## 빠른 시작
 
-1. [Releases](https://github.com/bvzrays/forza-painter-fh6/releases)에서 `forza-painter-fh6-v1.5.4.exe`를 다운로드합니다.
+1. [Releases](https://github.com/bvzrays/forza-painter-fh6/releases)에서 `forza-painter-fh6-v1.6.0.exe`를 다운로드합니다.
 2. EXE를 쓰기 가능한 일반 폴더에 둡니다. 예: `Desktop\forza-painter-fh6`.
 3. EXE를 더블 클릭합니다. FH6 가져오기에서 Windows가 프로세스 접근을 막으면 관리자 권한으로 실행하세요.
 4. FH6에서 `Create Vinyl Group` / `Vinyl Group Editor`를 열고 sphere 템플릿을 불러온 뒤 `Ungroup`합니다.
@@ -126,7 +126,7 @@ EXE 옆에 생길 수 있는 외부 폴더:
 ## 문제 해결
 
 - **FH6 가져오기가 안 됨:** 앱을 닫고 EXE를 관리자 권한으로 실행하세요.
-- **GPU/OpenCL 오류:** NVIDIA/AMD/Intel 그래픽 드라이버를 업데이트하세요.
+- **GPU/OpenCL 오류:** NVIDIA/AMD/Intel 그래픽 드라이버를 업데이트하세요. 내장 생성기는 OpenCL을 사용합니다.
 - **템플릿을 찾을 수 없음:** Vinyl Group Editor에 있는지, 템플릿이 Ungroup되었는지, 레이어 수가 정확한지 확인하세요.
 - **가져온 결과가 흐림:** 더 높은 레이어 JSON을 사용하거나 `Output layers` / `Random samples`를 높이세요.
 - **디버깅이 필요함:** 앱에서 `Export detailed log`를 실행하고 로그를 이슈에 첨부하세요.
@@ -140,6 +140,13 @@ EXE 옆에 생길 수 있는 외부 폴더:
 ## 변경 기록
 
 여기에는 버전 번호가 있는 릴리스만 남깁니다. 앱 업데이트 안내에 쓰이는 전체 기록은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
+
+### v1.6.0 / 2026-05-24
+
+- 앱 버전을 `v1.6.0`으로 업데이트했습니다. 릴리스 파일은 이제 `forza-painter-fh6-v1.6.0.exe`를 사용합니다.
+- 내장 GPU 생성기를 upstream `canary-26052401`로 업데이트했습니다.
+- upstream `errorGridSize` 프리셋 지원을 반영했습니다.
+- 투명 영역으로 도형이 넘치는 것을 줄이는 upstream 알고리즘 조정을 반영했습니다.
 
 ### v1.5.4 / 2026-05-23
 
