@@ -3,6 +3,7 @@ from pathlib import Path
 
 from app_paths import RESOURCE_ROOT, ROOT
 from geometry_json import drawable_shape_count
+from preprocess.luma import luma_bands
 
 
 BUNDLED_SETTINGS_DIR = RESOURCE_ROOT / "config" / "settings"
@@ -22,6 +23,7 @@ SETTING_KEYS = (
     "posterizeLevels",
     "previewEvery",
     "randomSamples",
+    "preprocessMode",
     "saveAt",
     "saveEvery",
     "stopAt",
@@ -126,6 +128,42 @@ def write_user_settings_preset(base_setting, custom_values, output_path, descrip
             lines.append(f"{key} = {values[key]}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+def _get_preprocess_mode(values):
+    if not values:
+        return None
+    preprocess_mode = str(values.get("preprocessMode", "")).strip().lower()
+    if preprocess_mode == "none" or not preprocess_mode:
+        return None
+    return preprocess_mode
+
+
+def _preprocessed_image_path(image_path, mode):
+    image_path = Path(image_path)
+    # Save preprocessed file beside the original
+    return image_path.with_name(f"{image_path.stem}.{mode}.{image_path.suffix}")
+
+
+def preprocess_input_image(image_path, setting):
+    image_path = Path(image_path)
+    mode = _get_preprocess_mode(setting.get("values", {}))
+    if mode is None:
+        return image_path
+
+    # Generate output path
+    output_path = _preprocessed_image_path(image_path, mode)
+    try:
+        if output_path.exists() and output_path.stat().st_mtime >= image_path.stat().st_mtime:
+            return output_path
+    except OSError:
+        pass
+    
+    # Generate preprocessed image
+    if mode == "luma_bands":
+        return luma_bands(image_path)
+    else:
+        raise ValueError(f"unsupported preprocess mode: {mode}")
 
 
 def generated_jsons(image_path):
