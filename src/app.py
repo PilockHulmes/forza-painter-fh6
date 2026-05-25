@@ -934,7 +934,8 @@ class App:
         template_row = Frame(step2)
         template_row.pack(fill=X, padx=10, pady=(0, 10))
         self._label(template_row, "layer_count").pack(side=LEFT)
-        Entry(template_row, textvariable=self.layer_count, width=18, font=("Segoe UI", 13)).pack(side=LEFT, padx=8)
+        self.layer_count_entry = Entry(template_row, textvariable=self.layer_count, width=18, font=("Segoe UI", 13))
+        self.layer_count_entry.pack(side=LEFT, padx=8)
 
         step3 = ttk.LabelFrame(left, text=tr(self.lang, "step_json"))
         self.translated.append((step3, "step_json", "text"))
@@ -2239,6 +2240,12 @@ class App:
         if not self.json_files:
             self.log_line("No JSON files selected.")
             return
+        layer_count = self.layer_count.get().strip()
+        if not layer_count:
+            self.log_line(tr(self.lang, "layer_count_required"))
+            self.layer_count_entry.config(highlightbackground="red", highlightthickness=1)
+            return
+        self.layer_count_entry.config(highlightbackground=Theme.BORDER, highlightthickness=0)
         pid = self.ensure_live_game_pid()
         if not pid:
             return
